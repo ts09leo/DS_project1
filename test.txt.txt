@@ -1,1 +1,1568 @@
-test
+#include <iostream>
+#include <cmath>
+#include <algorithm>
+#include <stdlib.h>
+#include <stdio.h>
+#include <fstream>
+
+using namespace std;
+
+int n, m;
+int stop = 0;
+fstream file;
+
+struct block{
+    int exist;
+    block* up;
+    block* down;
+    block* left;
+    block* right;
+};
+
+struct num_empty{
+    int num;
+    num_empty* up;
+    num_empty* down;
+};
+
+block* Map;
+num_empty* elim;
+
+block* generate_row(int n){
+    int j;
+    block* block_1 = new block;
+    block* first = block_1;
+    block_1->left = NULL;
+    block_1->down = NULL;
+    block_1->up = NULL;
+    block_1->exist = 0;
+    //block_1->pos_x = 1;
+    //block_1->pos_y = num;
+    //cout<<block_1->pos_x<<" ";
+    for(j=2; j<=n; j++){
+        block* block_2 = new block;
+        block_1->right = block_2;
+        block_2->left = block_1;
+        //block_2->pos_x = j;
+        block_2->exist = 0;
+        //block_2->pos_y = num;
+        block_2->up = NULL;
+        block_2->down =NULL;
+        block_1 = block_2;
+        //cout<<block_1->pos_x<<" ";
+    }
+    block_1->right = NULL;
+    return first;
+}
+
+block* generate_map(int m, int n){
+    block* row_1 = generate_row(n);
+    block* b_11 = row_1;
+    for(int i = 2; i<=m+4; i++){
+        block* row_2 = generate_row(n);
+        block* row_11 = row_1;
+        block* row_21 = row_2;
+        for(int j = 0; j<n; j++){
+            row_1->up = row_2;
+            row_2->down = row_1;
+            if(row_1->right != NULL){
+                row_1 = row_1->right;
+                row_2 = row_2->right;
+            }
+            else{
+                row_1 = row_21;
+                break;
+            }
+        }
+    }
+    return b_11;
+}
+
+num_empty* for_check(int m, int n){
+    num_empty* first = new num_empty;
+    num_empty* now = first;
+    now->down = NULL;
+    for(int i = 0; i<m+4; i++){
+        num_empty* second = new num_empty;
+        now->up = second;
+        second->down = now;
+        now->num = n;
+        now = second;
+    }
+    now->down->up = NULL;
+    now = NULL;
+    return first;
+}
+
+num_empty* delete_thisline(num_empty* thisline){
+    num_empty* top = elim;
+    for(int i = 1; i < m+4; i++){
+        top = top->up;
+    }
+    num_empty* new_line = new num_empty;
+    new_line->up = NULL;
+    new_line->down = top;
+    top->up = new_line;
+    new_line->num = n;
+    thisline->up->down = thisline->down;
+    thisline->down->up = thisline->up;
+    num_empty* temp = thisline;
+    thisline = thisline->up;
+    delete temp;
+    return thisline;
+}
+
+num_empty* delete_firstline(num_empty* thisline){
+    num_empty* top = elim;
+    for(int i = 1; i < m+4; i++){
+        top = top->up;
+    }
+    num_empty* new_line = new num_empty;
+    new_line->up = NULL;
+    new_line->down = top;
+    top->up = new_line;
+    new_line->num = n;
+    thisline->up->down = NULL;
+    num_empty* temp = thisline;
+    thisline = thisline->up;
+    delete temp;
+    return thisline;
+}
+
+block* delete_firstmap(block* full){
+    block* new_line = generate_row(n);
+    block* top = Map;
+    for(int i = 1; i < m+4; i++){
+        top = top->up;
+    }
+    for(int i = 1; i < n; i++){
+        top->up = new_line;
+        new_line->down = top;
+        new_line->up = NULL;
+        new_line = new_line->right;
+        top = top->right;
+    }
+    top->up = new_line;
+    new_line->down = top;
+    new_line->up = NULL;
+    block* head = full->up;
+    for(int i = 1; i < n; i++){
+        full->up->down = NULL;
+        block* temp = full;
+        full = full->right;
+        delete temp;
+    }
+    full->up->down = NULL;
+    delete full;
+    return head;
+}
+
+block* delete_map(block* full){
+    block* new_line = generate_row(n);
+    block* top = Map;
+    for(int i = 1; i < m+4; i++){
+        top = top->up;
+    }
+    for(int i = 1; i < n; i++){
+        top->up = new_line;
+        new_line->down = top;
+        new_line->up = NULL;
+        new_line = new_line->right;
+        top = top->right;
+    }
+    top->up = new_line;
+    new_line->down = top;
+    new_line->up = NULL;
+    block* head = full->up;
+    for(int i = 1; i < n; i++){
+        full->up->down = full->down;
+        full->down->up = full->up;
+        block* temp;
+        full = full->right;
+        delete temp;
+    }
+    full->up->down = full->down;
+    full->down->up = full->up;
+    delete full;
+    return head;
+}
+
+int check_elim(void){
+    num_empty* thisline = elim;
+    block* full = Map;
+    int d = 0;
+    for(int i = 1; i < m; i++){
+        if(thisline->num != 0){
+            thisline = thisline->up;
+            full = full->up;
+        }
+        else if(thisline->down == NULL){
+            thisline = delete_firstline(thisline);
+            full = delete_firstmap(full);
+            elim = thisline;
+            Map = full;
+            d += 1;
+            cout<<"elim"<<endl;
+        }
+        else{
+            thisline = delete_thisline(thisline);
+            full = delete_map(full);
+            d += 1;
+            cout<<"elim"<<endl;
+        }
+    }
+    return d;
+}
+
+int check_col(int* col, int i){
+    block* thisline = Map;
+    int high = 1;
+    int if_check = 0;
+    for(int j = 0; j < i; j++){
+        thisline = thisline->right;
+    }
+    for(int j = 1; j < m+4; j++){
+        thisline = thisline->up;
+        //cout<<"run up j = "<<j<<endl;
+    }
+    for(int j = m+4; j > 1; j--){
+        if(thisline->down->exist == 1){
+            high = j;
+            if_check = 1;
+            break;
+        }
+        thisline = thisline->down;
+    }
+    return high;
+}
+
+void put_box(char box, int box_type, int from, int* col){
+    //cout<<"run put box, box = "<<box;
+    block* now = Map;
+    char b;
+    num_empty* this_line = elim;
+    //int box_type, from;
+    switch(box){
+    case 'T':
+        //cout<<"box_type = "<<box<<box_type<<endl;
+        switch(box_type){
+        case 1:
+        {
+            //cout<<"T1"<<endl;
+            if(col[from-1]-1 >= col[from] && col[from-1] >= col[from+1]){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->right->exist = 1;
+                now->right->down->exist = 1;
+                col[from-1] += 2;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->down->num -= 1;
+            }
+            else if(col[from+1] >= col[from]+1 && col[from+1] >= col[from-1]){
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->left->exist = 1;
+                now->left->down->exist = 1;
+                col[from-1] = col[from+1] + 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->down->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->up->exist = 1;
+                now->up->exist = 1;
+                now->right->up->exist = 1;
+                col[from-1] = col[from] + 2;
+                col[from] = col[from] + 2;
+                col[from+1] = col[from-1];
+                this_line->num -= 1;
+                this_line->up->num -= 3;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        case 2:
+        {
+            //cout<<"T2"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            //cout<< col[from-1]<<" "<<col[from]<<endl;
+            if(col[from]+1 >= col[from-1] ){
+                //cout<<"T2 if"<<endl;
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->exist = 1;
+                now->up->up->exist = 1;
+                now->left->up->exist = 1;
+                col[from-1] = col[from] + 2;
+                col[from] = col[from] + 3;
+                this_line->num -= 1;
+                this_line->up->num -= 2;
+                this_line->up->up->num -= 1;
+            }
+            else {
+                //cout<<"T2 else"<<endl;
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->down->exist = 1;
+                now->right->exist = 1;
+                now->right->up->exist = 1;
+                col[from-1] += 1;
+                col[from] = col[from-1] + 1;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->down->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+    }
+        case 3:
+        {
+            //cout<<"T3"<<endl;
+            if(col[from-1] >= col[from] && col[from-1] >= col[from+1]){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->right->exist = 1;
+                now->right->up->exist = 1;
+                col[from-1] += 1;
+                col[from] = col[from-1] + 1;
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            else if(col[from] >= col[from-1] && col[from] >= col[from+1]){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->right->exist = 1;
+                now->up->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] += 2;
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->left->exist = 1;
+                now->left->up->exist = 1;
+                col[from-1] = col[from+1] + 1;
+                col[from] = col[from+1] + 2;
+                col[from+1] = col[from+1] + 1;
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        case 4:
+        {
+            //cout<<"T4"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from-1]+1 >= col[from] ){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->exist = 1;
+                now->up->up->exist = 1;
+                now->right->up->exist = 1;
+                col[from-1] = col[from-1] + 3;
+                col[from] = col[from-1] - 1;
+                this_line->num -= 1;
+                this_line->up->num -= 2;
+                this_line->up->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->down->exist = 1;
+                now->left->exist = 1;
+                now->left->up->exist = 1;
+                col[from-1] = col[from] + 2;
+                col[from] = col[from] + 1;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->down->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        }
+        break;
+    case 'L':
+        //cout<<"box_type = "<<box<<box_type<<endl;
+        switch(box_type){
+        case 1:
+            {
+            //cout<<"L1"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from-1] >= col[from] ){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->up->exist = 1;
+                now->up->up->exist = 1;
+                col[from-1] += 3;
+                col[from] = col[from-1] - 2;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->up->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->up->exist = 1;
+                now->left->up->up->exist = 1;
+                col[from-1] += 3;
+                col[from] = col[from-1] - 2;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->up->up->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+    }
+        case 2:
+        {
+            //cout<<"L2"<<endl;
+            if(col[from] >= col[from-1]+1 && col[from] >= col[from+1]){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->left->exist = 1;
+                now->left->down->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->down->num -= 1;
+            }
+            else if(col[from+1] >= col[from]+1 && col[from+1] >= col[from-1]){
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->left->exist = 1;
+                now->left->left->down->exist = 1;
+                col[from-1] = col[from+1] + 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->down->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->right->exist = 1;
+                now->up->exist = 1;
+                now->right->right->up->exist = 1;
+                col[from-1] = col[from-1] + 2;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 1;
+                this_line->up->num -= 3;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        case 3:
+        {
+            //cout<<"L3"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from]+2 >= col[from-1] ){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->exist = 1;
+                now->up->up->exist = 1;
+                now->up->up->left->exist = 1;
+                col[from-1] = col[from] + 3;
+                col[from] = col[from] + 3;
+                this_line->num -= 1;
+                this_line->up->num -= 1;
+                this_line->up->up->num -= 2;
+            }
+            else {
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->down->exist = 1;
+                now->right->exist = 1;
+                now->right->down->down->exist = 1;
+                col[from-1] += 1;
+                col[from] = col[from-1];
+                this_line->num -= 2;
+                this_line->down->num -= 1;
+                this_line->down->down->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+    }
+        case 4:
+        {
+            //cout<<"L4"<<endl;
+            if(col[from-1] >= col[from] && col[from-1] >= col[from+1]){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->right->exist = 1;
+                now->right->right->up->exist = 1;
+                col[from-1] += 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1] + 1;
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            else if(col[from] >= col[from-1] && col[from] >= col[from+1]){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->right->exist = 1;
+                now->right->up->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] += 1;
+                col[from+1] = col[from-1] + 1;
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->left->exist = 1;
+                now->up->exist = 1;
+                col[from-1] = col[from+1] + 1;
+                col[from] = col[from+1] + 1;
+                col[from+1] = col[from+1] + 2;
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        }
+        break;
+    case 'J':
+        //cout<<"box_type = "<<box<<box_type<<endl;
+        switch(box_type){
+        case 1:
+        {
+            //cout<<"J1"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from-1] >= col[from] ){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->up->exist = 1;
+                now->right->up->up->exist = 1;
+                col[from-1] += 1;
+                col[from] = col[from-1] + 2;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->up->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->up->exist = 1;
+                now->up->up->exist = 1;
+                col[from-1] += 1;
+                col[from] = col[from-1] + 2;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->up->up->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+    }
+        case 2:
+        {
+            //cout<<"J2"<<endl;
+            if(col[from-1] >= col[from] && col[from-1] >= col[from+1]){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->right->exist = 1;
+                now->up->exist = 1;
+                col[from-1] += 2;
+                col[from] = col[from-1] - 1;
+                col[from+1] = col[from-1] - 1;
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            else if(col[from] >= col[from-1] && col[from] >= col[from+1]){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->right->exist = 1;
+                now->left->up->exist = 1;
+                col[from-1] = col[from] + 2;
+                col[from] += 1;
+                col[from+1] = col[from];
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->left->exist = 1;
+                now->left->left->up->exist = 1;
+                col[from-1] = col[from+1] + 2;
+                col[from] = col[from+1] + 1;
+                col[from+1] = col[from+1] + 1;
+                this_line->num -= 3;
+                this_line->up->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        case 3:
+        {
+            //cout<<"J3"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            //cout<<col[from-1]<<" "<<col[from]<<endl;
+            if(col[from-1]+2 >= col[from] ){
+                //cout<<"J3 if"<<endl;
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->exist = 1;
+                now->up->up->exist = 1;
+                now->up->up->right->exist = 1;
+                col[from-1] = col[from-1] + 3;
+                col[from] = col[from-1];
+                this_line->num -= 1;
+                this_line->up->num -= 1;
+                this_line->up->up->num -= 2;
+            }
+            else {
+                //cout<<"J3 else"<<endl;
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->down->exist = 1;
+                now->left->down->down->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] = col[from-1];
+                this_line->num -= 2;
+                this_line->down->num -= 1;
+                this_line->down->down->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+    }
+        case 4:
+        {
+            //cout<<"L2"<<endl;
+            if(col[from] >= col[from-1] && col[from] >= col[from+1]+1){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->left->exist = 1;
+                now->right->down->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->down->num -= 1;
+            }
+            else if(col[from-1] >= col[from]+1 && col[from-1] >= col[from-1]){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->right->exist = 1;
+                now->right->right->down->exist = 1;
+                col[from-1] = col[from-1] + 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 3;
+                this_line->down->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->exist = 1;
+                now->up->left->exist = 1;
+                now->up->left->left->exist = 1;
+                col[from-1] = col[from+1] + 2;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                this_line->num -= 1;
+                this_line->up->num -= 3;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        }
+        break;
+    case 'S':
+        //cout<<"box_type = "<<box<<box_type<<endl;
+        switch(box_type){
+        case 1:
+        {
+            //cout<<"S1"<<endl;
+            if(col[from-1] >= col[from] && col[from-1]+1 >= col[from+1]){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->up->exist = 1;
+                now->right->up->right->exist = 1;
+                col[from-1] = col[from-1] + 1;
+                col[from] = col[from-1] + 1;
+                col[from+1] = col[from];
+                this_line->num -= 2;
+                this_line->up->num -= 2;
+            }
+            else if(col[from] >= col[from-1] && col[from]+1 >= col[from+1]){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->up->exist = 1;
+                now->up->right->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] = col[from] + 2;
+                col[from+1] = col[from];
+                this_line->num -= 2;
+                this_line->up->num -= 2;
+            }
+            else {
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->down->exist = 1;
+                now->left->down->left->exist = 1;
+                col[from-1] = col[from+1];
+                col[from] = col[from-1]+1;
+                col[from+1] = col[from];
+                this_line->num -= 2;
+                this_line->down->num -= 3;
+            }
+            this_line = elim;
+            now = Map;
+            /*for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        case 2:
+        {
+            //cout<<"S2"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from]+1 >= col[from-1] ){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->exist = 1;
+                now->up->left->exist = 1;
+                now->up->left->up->exist = 1;
+                col[from-1] = col[from] + 3;
+                col[from] = col[from] + 2;
+                this_line->num -= 1;
+                this_line->up->num -= 2;
+                this_line->up->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->down->exist = 1;
+                now->right->exist = 1;
+                now->up->exist = 1;
+                col[from-1] = col[from-1] + 2;
+                col[from] = col[from-1] - 1;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->down->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        }
+        break;
+    case 'Z':
+        //cout<<"box_type = "<<box<<box_type<<endl;
+        switch(box_type){
+        case 1:
+        {
+            //cout<<"Z1"<<endl;
+            if(col[from]+1 >= col[from-1] && col[from] >= col[from+1]){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->up->exist = 1;
+                now->left->up->exist = 1;
+                col[from-1] = col[from]+2;
+                col[from] = col[from-1];
+                col[from+1] = col[from]-1;
+                this_line->num -= 2;
+                this_line->up->num -= 2;
+            }
+            else if(col[from+1] >= col[from] && col[from+1]+1 >= col[from-1]){
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->up->exist = 1;
+                now->left->up->left->exist = 1;
+                col[from-1] = col[from+1] + 2;
+                col[from] = col[from-1];
+                col[from+1] = col[from+1] + 1;
+                this_line->num -= 2;
+                this_line->up->num -= 2;
+            }
+            else {
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->down->exist = 1;
+                now->right->down->right->exist = 1;
+                col[from-1] = col[from-1] + 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1] - 1;
+                this_line->num -= 2;
+                this_line->down->num -= 2;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        case 2:
+        {
+            //cout<<"Z2"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from-1]+1 >= col[from] ){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->up->exist = 1;
+                now->up->right->exist = 1;
+                now->up->right->up->exist = 1;
+                col[from-1] = col[from-1] + 2;
+                col[from] = col[from-1] + 1;
+                this_line->num -= 1;
+                this_line->up->num -= 2;
+                this_line->up->up->num -= 1;
+            }
+            else {
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->down->exist = 1;
+                now->left->exist = 1;
+                now->up->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] = col[from] + 2;
+                this_line->num -= 2;
+                this_line->up->num -= 1;
+                this_line->down->num -= 1;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        }
+        break;
+    case 'I':
+        //cout<<"box_type = "<<box<<box_type<<endl;
+        switch(box_type){
+        case 1:
+        {
+            //cout<<"I1"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            for(int i = 1; i < from; i++){
+                now = now->right;
+            }
+            for(int i = 1; i < col[from-1]; i++){
+                now = now->up;
+                this_line = this_line->up;
+            }
+            now->exist = 1;
+            now->up->exist = 1;
+            //out<<"success"<<endl;
+            now->up->up->exist = 1;
+            now->up->up->up->exist = 1;
+            col[from-1] += 4;
+            this_line->num -= 1;
+            this_line->up->num -= 1;
+            this_line->up->up->num -= 1;
+            this_line->up->up->up->num -= 1;
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        case 2:
+        {
+            //cout<<"I2"<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from-1] >= col[from] && col[from-1] >= col[from+1] && col[from-1] >= col[from+2]){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->right->right->exist = 1;
+                now->right->right->right->exist = 1;
+                col[from-1] += 1;
+                col[from] = col[from-1];
+                col[from+1] = col[from-1];
+                col[from+2] = col[from-1];
+                this_line->num -= 4;
+            }
+            else if(col[from] >= col[from-1] && col[from] >= col[from+1] && col[from] >= col[from+2]){
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->right->exist = 1;
+                now->right->right->exist = 1;
+                col[from-1] = col[from] + 1;
+                col[from] += 1;
+                col[from+1] = col[from-1];
+                col[from+2] = col[from-1];
+                this_line->num -= 4;
+            }
+            else if(col[from+1] >= col[from-1] && col[from+1] >= col[from] && col[from+1] >= col[from+2]){
+                for(int i = 1; i < from+2; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->left->exist = 1;
+                now->right->exist = 1;
+                col[from-1] = col[from+1] + 1;
+                col[from] = col[from+1] + 1;
+                col[from+1] = col[from+1] + 1;
+                col[from+2] = col[from+1];
+                this_line->num -= 4;
+            }
+            else{
+                for(int i = 1; i < from+3; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from+2]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->left->left->exist = 1;
+                now->left->left->left->exist = 1;
+                col[from-1] = col[from+2] + 1;
+                col[from] = col[from+2] + 1;
+                col[from+1] = col[from+2] + 1;
+                col[from+2] = col[from+2] + 1;
+                this_line->num -= 4;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+        }
+        }
+        break;
+    case 'O':
+    {
+            //cout<<"O"<<endl;
+            //cout<<"box_type = "<<box<<endl;
+            block* now = Map;
+            num_empty* this_line = elim;
+            if(col[from-1] >= col[from] ){
+                for(int i = 1; i < from; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from-1]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->right->exist = 1;
+                now->up->exist = 1;
+                now->up->right->exist = 1;
+                //cout<<col[from-1]<<" "<<col[from]<<endl;
+                col[from-1] += 2;
+                col[from] = col[from-1];
+                //cout<<col[from-1]<<" "<<col[from]<<endl;
+                this_line->num -= 2;
+                this_line->up->num -= 2;
+            }
+            else {
+                for(int i = 1; i < from+1; i++){
+                    now = now->right;
+                }
+                for(int i = 1; i < col[from]; i++){
+                    now = now->up;
+                    this_line = this_line->up;
+                }
+                now->exist = 1;
+                now->left->exist = 1;
+                now->up->exist = 1;
+                now->left->up->exist = 1;
+                //cout<<col[from-1]<<" "<<col[from]<<endl;
+                col[from-1] = col[from] + 2;
+                col[from] = col[from] += 2;
+                //cout<<col[from-1]<<" "<<col[from]<<endl;
+                this_line->num -= 2;
+                this_line->up->num -= 2;
+            }
+            /*this_line = elim;
+            now = Map;
+            for(int i = 0; i < 10; i++){
+                cout<<col[i];
+            }
+            cout<<endl;
+            for(int i = 0; i<10; i++){
+                cout<<this_line->num<<" ";
+                this_line = this_line->up;
+            }
+            cout<<endl;*/
+            break;
+    }
+    break;
+    }
+    int num_d = check_elim();
+    for(int i = 0; i < n; i++){
+        col[i] = check_col(col, i);
+        //cout<<"check"<<endl;
+        if(col[i] > m+1){
+            //cout<<col[i]<<" > "<<m<<endl;
+            stop = 1;
+            break;
+        }
+    }
+    num_d = 0;
+}
+
+int main()
+{
+    fstream file("tetris.data");
+    //int size_map[3];
+    if(!file){
+        cout<<"stupid"<<endl;
+        return 1;
+    }
+    /*else{
+        file>>m>>n;
+        //file.close();
+        //m = size_map[0];
+        //n = size_map[1];
+        //cout<<m<<" "<<n<<endl;
+        //system("pause");
+    }*/
+    char buf[8];
+    //cin>>m>>n;
+    file>>m>>n;
+    Map = generate_map(m, n);
+    int* col = new int[n];
+    block* first = Map;
+    elim = for_check(m, n);
+    for(int i = 1; i<=n; i++){
+        col[i-1] = 1;
+    }
+    //char box;
+    int oi = 1;
+    while(1){
+        //cout<<oi<<" ";
+        //oi += 1;
+        char box;
+        //cin>>box;
+        file>>box;
+        int box_type;
+        int from;
+        //cout<<box<<box_type<<" "<<from<<endl;
+        if(box == 'E'){
+            break;
+        }
+        else if(box == 'O'){
+            file>>from;
+            //cin>>from;
+            put_box(box, 0, from, col);
+        }
+        else{
+            file>>box_type>>from;
+            //cin>>box_type>>from;
+            put_box(box, box_type, from, col);
+        }
+        if(stop == 1){
+            //cout<<"stop = 1"<<endl;
+            break;
+        }
+        /*first = Map;
+        for(int i = 1; i < m+4; i++){
+            first = first->up;
+        }
+        for(int i = 0; i < m+4; i++){
+            block* prev_row = first;
+            for(int j = 0; j < n; j++){
+                cout<<first->exist;
+                first = first->right;
+            }
+            cout<<endl;
+            first = prev_row->down;
+        }
+        //for(int i = 0; i < n)
+        for(int i = 0; i < n; i++){
+            cout<<col[i]<<" ";
+        }
+        cout<<endl;
+        first = Map;
+        //cout<<from;*/
+    }
+    char out[] = "tetris.final";
+    fstream fuck;
+    fuck.open(out, ios::out);
+    if(!fuck){
+        cout<<"G8"<<endl;
+    }
+    first = Map;
+    for(int i = 1; i < m; i++){
+        first = first->up;
+    }
+    for(int i = 0; i < m; i++){
+        block* prev_row = first;
+        for(int j = 0; j < n; j++){
+            //cout<<first->exist;
+            fuck<<first->exist;
+            first = first->right;
+        }
+        //cout<<endl;
+        fuck<<endl;
+        first = prev_row->down;
+    }
+    return 0;
+}
